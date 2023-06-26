@@ -10,46 +10,32 @@ from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
 from email.mime.base import MIMEBase
 from email import encoders
-from openpyxl import load_workbook
-import os
-# Restante do seu código...
 
 # Função para carregar os dados do arquivo Excel
 def carregar_dados_arquivo(nome_arquivo):
-    if os.path.isfile(nome_arquivo):
-        try:
-            dados = pd.read_excel(nome_arquivo, engine='openpyxl')
-            return dados
-        except ValueError:
-            return None
-    else:
-        return None
-
-# Função para salvar os dados no arquivo Excel
-def salvar_dados_arquivo(dados, nome_arquivo):
     try:
-        writer = pd.ExcelWriter(nome_arquivo, engine='openpyxl')
-        writer.book = load_workbook(nome_arquivo)
-        writer.sheets = {ws.title: ws for ws in writer.book.worksheets}
-        writer.has_saved_data = len(writer.sheets) > 0
-        dados.to_excel(writer, index=False, header=not writer.has_saved_data)
-        writer.save()
-        writer.close()
+        dados = pd.read_excel(nome_arquivo)
+        return dados
     except FileNotFoundError:
-        dados.to_excel(nome_arquivo, index=False)
+        return None
 
 # Função para gerar o número automático de registro
 def gerar_numero_registro():
     dados_nao_conformidades = carregar_dados_arquivo('registro_nao_conformidades.xlsx')
     if dados_nao_conformidades is not None:
-        ultimo_registro = dados_nao_conformidades['Número de Registro'].max()
-        if pd.isnull(ultimo_registro):
-            numero_registro = 1
+        if 'Número de Registro' in dados_nao_conformidades.columns:
+            ultimo_registro = dados_nao_conformidades['Número de Registro'].max()
+            if pd.isnull(ultimo_registro):
+                numero_registro = 1
+            else:
+                numero_registro = int(ultimo_registro) + 1
         else:
-            numero_registro = int(ultimo_registro) + 1
+            numero_registro = 1
     else:
         numero_registro = 1
     return numero_registro
+
+
 
 # Função para gerar o arquivo docx com base no template
 def gerar_documento_docx(template, dados):
@@ -110,28 +96,26 @@ def enviar_email(destinatario, assunto, corpo, nome_arquivo_pdf):
 def pagina_registro_coletas():
     st.title('Registro de Novas Coletas')
 
-    data = st.date_input('Data', key='coleta_data')
-    motivo = st.text_input('Motivo', key='coleta_motivo')
-    pedido = st.text_input('Pedido', key='coleta_pedido')
-    atendimento = st.text_input('Atendimento', key='coleta_atendimento')
-    exames = st.text_input('Exames', key='coleta_exames')
+    data = st.date_input('Data')
+    motivo = st.text_input('Motivo')
+    pedido = st.text_input('Pedido')
+    atendimento = st.text_input('Atendimento')
+    exames = st.text_input('Exames')
 
     if st.button('Salvar'):
         dados = pd.DataFrame({'Data': [data], 'Motivo': [motivo], 'Pedido': [pedido], 'Atendimento': [atendimento], 'Exames': [exames]})
-        salvar_dados_arquivo(dados, 'registro_coletas.xlsx')
+        dados.to_excel('registro_coletas.xlsx', index=False)
         st.success('Registro salvo com sucesso!')
 
 # Função para página de registro de não conformidades
 def pagina_registro_nao_conformidades():
     st.title('Registro de Não Conformidades')
 
-    dados = pd.DataFrame()
-
     numero_registro = gerar_numero_registro()
     data_registro = date.today()
-    data_fato = st.date_input('Data do Fato', value=None, key=f'rnc_data_fato_{numero_registro}')
-    aberto_por = st.text_input('A não conformidade aberta por', key=f'rnc_aberto_por_{numero_registro}')
-    numero_pedido = st.text_input('Número do Pedido', key=f'rnc_numero_pedido_{numero_registro}')
+    data_fato = st.date_input('Data do Fato')
+    aberto_por = st.text_input('A não conformidade aberta por')
+    numero_pedido = st.text_input('Número do Pedido')
     tipo_nao_conformidade = st.selectbox('Tipo de Não Conformidade', ['Coleta: Troca de paciente',
                                                                       'Coleta: Troca de etiquetas',
                                                                       'Coleta: Coleta em tubo inadequado',
@@ -144,26 +128,33 @@ def pagina_registro_nao_conformidades():
                                                                       'Área Técnica: Erro na liberação do exame',
                                                                       'Área Técnica: Controle interno fora das especificações',
                                                                       'Área Técnica: Equipamentos',
-                                                                      'Área Técnica: Outro'], key=f'rnc_tipo_nao_conformidade_{numero_registro}')
-    fato = st.text_area('Descreva o fato', key=f'rnc_fato_{numero_registro}')
-    acao_corretiva = st.text_area('Ação corretiva imediata', key=f'rnc_acao_corretiva_{numero_registro}')
-    responsavel_acao_corretiva = st.text_input('Responsável pela ação corretiva', key=f'rnc_responsavel_acao_corretiva_{numero_registro}')
+                                                                      'Área Técnica: Outro'])
+    fato = st.text_area('Descreva o fato')
+    acao_corretiva = st.text_area('Ação corretiva imediata')
+    responsavel_acao_corretiva = st.text_input('Responsável pela ação corretiva')
 
     if st.button('Salvar'):
-        dados = pd.DataFrame({'Número de Registro': [numero_registro],
-                              'Data do Registro': [data_registro],
-                              'Data do Fato': [data_fato],
-                              'A não conformidade aberta por': [aberto_por],
-                              'Número do Pedido': [numero_pedido],
-                              'Tipo de Não Conformidade': [tipo_nao_conformidade],
-                              'Fato': [fato],
-                              'Ação Corretiva Imediata': [acao_corretiva],
-                              'Responsável pela Ação Corretiva': [responsavel_acao_corretiva]})
+        novo_registro = pd.DataFrame({'Número de Registro': [numero_registro],
+                                      'Data do Registro': [data_registro],
+                                      'Data do Fato': [data_fato],
+                                      'A não conformidade aberta por': [aberto_por],
+                                      'Número do Pedido': [numero_pedido],
+                                      'Tipo de Não Conformidade': [tipo_nao_conformidade],
+                                      'Fato': [fato],
+                                      'Ação Corretiva Imediata': [acao_corretiva],
+                                      'Responsável pela Ação Corretiva': [responsavel_acao_corretiva]})
 
-        salvar_dados_arquivo(dados, 'registro_nao_conformidades.xlsx')
+        dados_nao_conformidades = carregar_dados_arquivo('registro_nao_conformidades.xlsx')
+
+        if dados_nao_conformidades is not None:
+            dados_nao_conformidades = pd.concat([dados_nao_conformidades, novo_registro], ignore_index=True)
+        else:
+            dados_nao_conformidades = novo_registro
+
+        dados_nao_conformidades.to_excel('registro_nao_conformidades.xlsx', index=False)
 
         template = 'template_rnc.docx'
-        nome_arquivo_pdf = gerar_documento_pdf(template, dados, numero_registro)
+        nome_arquivo_pdf = gerar_documento_pdf(template, novo_registro, numero_registro)
 
         st.success('Registro salvo com sucesso!')
         st.markdown(f"Baixe o arquivo PDF: [registro_nao_conformidades_{numero_registro}_{date.today().strftime('%Y%m%d_%H%M%S')}.pdf]({nome_arquivo_pdf})")
@@ -174,14 +165,6 @@ def pagina_registro_nao_conformidades():
         corpo = 'Corpo do email'
         enviar_email(destinatario, assunto, corpo, nome_arquivo_pdf)
 
-        # Limpar campos
-        st.session_state[f'rnc_data_fato_{numero_registro}'] = None
-        st.session_state[f'rnc_aberto_por_{numero_registro}'] = ''
-        st.session_state[f'rnc_numero_pedido_{numero_registro}'] = ''
-        st.session_state[f'rnc_tipo_nao_conformidade_{numero_registro}'] = ''
-        st.session_state[f'rnc_fato_{numero_registro}'] = ''
-        st.session_state[f'rnc_acao_corretiva_{numero_registro}'] = ''
-        st.session_state[f'rnc_responsavel_acao_corretiva_{numero_registro}'] = ''
 
 # Função para página de indicadores de coletas
 def pagina_indicadores_coletas():
@@ -206,18 +189,47 @@ def pagina_indicadores_coletas():
     else:
         st.warning('Nenhum dado de coleta encontrado.')
 
-# Função para a página principal
-def pagina_principal():
-    st.sidebar.title('Menu')
-    pagina = st.sidebar.selectbox('Selecione a página', ['Registro de Novas Coletas', 'Registro de Não Conformidades', 'Indicadores de Coletas'])
+# Função para página de indicadores de não conformidades
+def pagina_indicadores_nao_conformidades():
+    st.title('Indicadores de Não Conformidades')
 
-    if pagina == 'Registro de Novas Coletas':
+    dados_nao_conformidades = carregar_dados_arquivo('registro_nao_conformidades.xlsx')
+
+    if dados_nao_conformidades is not None:
+        dados_nao_conformidades['Data do Registro'] = pd.to_datetime(dados_nao_conformidades['Data do Registro'])
+        nao_conformidades_por_dia = dados_nao_conformidades.groupby(dados_nao_conformidades['Data do Registro'].dt.date).size()
+        nao_conformidades_por_mes = dados_nao_conformidades.groupby(dados_nao_conformidades['Data do Registro'].dt.to_period('M')).size()
+        nao_conformidades_por_ano = dados_nao_conformidades.groupby(dados_nao_conformidades['Data do Registro'].dt.to_period('Y')).size()
+
+        st.subheader('Não Conformidades por Dia')
+        st.bar_chart(nao_conformidades_por_dia)
+
+        st.subheader('Não Conformidades por Mês')
+        st.bar_chart(nao_conformidades_por_mes)
+
+        st.subheader('Não Conformidades por Ano')
+        st.bar_chart(nao_conformidades_por_ano)
+    else:
+        st.warning('Nenhum dado de não conformidade encontrado.')
+
+# Função para página principal
+def pagina_principal():
+    st.title('Gestão do Laboratório')
+
+    st.sidebar.title('Menu')
+    opcao = st.sidebar.selectbox('Selecione uma opção', ['Registro de Novas Coletas',
+                                                         'Registro de Não Conformidades',
+                                                         'Indicadores de Coletas',
+                                                         'Indicadores de Não Conformidades'])
+
+    if opcao == 'Registro de Novas Coletas':
         pagina_registro_coletas()
-    elif pagina == 'Registro de Não Conformidades':
+    elif opcao == 'Registro de Não Conformidades':
         pagina_registro_nao_conformidades()
-    elif pagina == 'Indicadores de Coletas':
+    elif opcao == 'Indicadores de Coletas':
         pagina_indicadores_coletas()
+    elif opcao == 'Indicadores de Não Conformidades':
+        pagina_indicadores_nao_conformidades()
 
 # Executar a página principal
-if __name__ == '__main__':
-    pagina_principal()
+pagina_principal()
