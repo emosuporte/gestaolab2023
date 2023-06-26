@@ -11,6 +11,8 @@ from email.mime.text import MIMEText
 from email.mime.base import MIMEBase
 from email import encoders
 from openpyxl import load_workbook
+import os
+# Restante do seu código...
 
 # Função para carregar os dados do arquivo Excel
 def carregar_dados_arquivo(nome_arquivo):
